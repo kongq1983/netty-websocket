@@ -1,0 +1,6 @@
+
+
+注意1:
+websocket建立连接的时候,如果没有token,服务器不能发数据给客户端的,因为这个时候还没建立连接
+
+WebSocketServerProtocolHandshakeHandler
