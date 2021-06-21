@@ -1,19 +1,23 @@
 package com.kq.netty.handler;
 
+import com.kq.netty.connection.WebSocketConnectionFacade;
+import com.kq.netty.dto.UpgradeDataDto;
+import com.kq.netty.util.ChannelUtil;
 import com.kq.netty.util.RequestUriUtils;
-import io.netty.buffer.ByteBuf;
+import com.kq.netty.util.WebsocketResponseUtil;
+
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
-import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
-import io.netty.util.CharsetUtil;
+
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.Date;
@@ -21,16 +25,20 @@ import java.util.Map;
 
 
 /**
- * 处理请求参数
+ *
+ * 验证处理请求参数
  * @author kq
  * @date 2021-06-17 11:06
  * @since 2020-0630
  */
+@ChannelHandler.Sharable
+@Component
 public class RequestUriWebSocketFrameHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     protected Logger logger = LoggerFactory.getLogger(RequestUriWebSocketFrameHandler.class);
 
-    WebSocketServerHandshaker handshaker;
+    @Autowired
+    WebSocketConnectionFacade webSocketConnectionFacade;
 
 
     @Override
@@ -39,7 +47,7 @@ public class RequestUriWebSocketFrameHandler extends SimpleChannelInboundHandler
             FullHttpRequest request = (FullHttpRequest) msg;
             String uri = request.uri();
             String origin = request.headers().get("Origin");
-            logger.debug("orgiin={}",origin);
+            logger.debug("origin={}",origin);
             // 没有来源，则直接关闭
             if (null == origin) {
                 logger.warn("{}, 没有来源!",ctx);
@@ -47,39 +55,38 @@ public class RequestUriWebSocketFrameHandler extends SimpleChannelInboundHandler
                 return;
             } else {
                 Map<String, String> params = RequestUriUtils.getParams(uri);
-                String token = params.get("token");
-                if(StringUtils.isEmpty(token)) {
-                    logger.error("{}, 没有Token!",ctx);
-//                    ctx.channel().writeAndFlush("认证失败！");
 
-//                    byte[] bytes = "认证失败！".getBytes();
-//
-//                    HttpResponseStatus httpResponseStatus = HttpResponseStatus.UNAUTHORIZED;
-//
-//                    FullHttpResponse response = new DefaultFullHttpResponse(
-//                            HTTP_1_1, httpResponseStatus, Unpooled.wrappedBuffer(bytes));
-////                    ctx.channel().writeAndFlush(response);
-//                    ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
-
-
-//                    ByteBuf buf = Unpooled.buffer(bytes.length);
-//                    buf.writeBytes(bytes);
-//                    buf.clear();
-
-//                    ctx.channel().writeAndFlush(buf);
-                    // 先升級
-                    this.handleHttpRequest(ctx,request);
-
-                    sendData(ctx, request);
-
+                String orgId = params.get("orgId");
+                String tableId = params.get("tableId");
+                if(StringUtils.isEmpty(orgId)) {
+                    logger.error("{}, orgId 为空!",ctx);
+                    sendFailInfoCommon(ctx, request,"orgId");
+                    return;
 //                    sendError(ctx, request, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_REQUEST));
 //                    sendError(ctx, request, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.SWITCHING_PROTOCOLS));
-
 //                    ctx.close();
 //                    return;
                 }
 
+                if(StringUtils.isEmpty(tableId)) {
+                    logger.error("{}, tableId 为空!",ctx);
+                    sendFailInfoCommon(ctx, request,"tableId");
+                    return;
+                }
+
+                Date now = new Date();
+                UpgradeDataDto dto = new UpgradeDataDto();
+                dto.setOrgId(orgId);
+                dto.setTableId(tableId);
+                dto.setCreateTime(now);
+
+
                 // 校验token 合法性，这里先通过
+                ChannelUtil.setUpgradeDto(ctx,dto);
+
+                // 这里upgrade后，放客户端连接
+                webSocketConnectionFacade.addConnection(ctx);
+
             }
 
             request.setUri(RequestUriUtils.getBasePath(uri));
@@ -87,6 +94,17 @@ public class RequestUriWebSocketFrameHandler extends SimpleChannelInboundHandler
         }
         ctx.fireChannelRead(msg);
 //        super.channelRead(ctx, msg);
+    }
+
+    private void sendFailInfoCommon(ChannelHandlerContext ctx, FullHttpRequest request,String filed) {
+        HttpResponseStatus failStatus = HttpResponseStatus.valueOf(10000,filed+" is valid");
+//                    HttpResponseStatus failStatus = HttpResponseStatus.UNAUTHORIZED;
+        // 注意 這裏的ByteBuf 用Unpooled.directBuffer()
+        // 如果用byte[] 則有問題，客户端weboskcet的status不是这里指定的
+        FullHttpResponse response = new DefaultFullHttpResponse(
+                HttpVersion.HTTP_1_1, failStatus, Unpooled.directBuffer());
+
+        WebsocketResponseUtil.sendFailInfo(ctx,request,response);
     }
 
     @Override
@@ -104,7 +122,7 @@ public class RequestUriWebSocketFrameHandler extends SimpleChannelInboundHandler
 //    }
 
 
-    private static void sendData(ChannelHandlerContext ctx, FullHttpRequest req) {
+//    private static void sendData(ChannelHandlerContext ctx, FullHttpRequest req) {
 
 
 
@@ -116,45 +134,49 @@ public class RequestUriWebSocketFrameHandler extends SimpleChannelInboundHandler
 //        ctx.channel().writeAndFlush(byteBuf);
         // 沒upgradeq前，用DefaultFullHttpResponse
         // websocket 建立連接后 使用TextWebSocketFrame
-        ctx.channel().writeAndFlush(new TextWebSocketFrame("good"));
+//        ctx.channel().writeAndFlush(new TextWebSocketFrame("good"));
 
 
-    }
+//    }
 
 
-    private static void sendError(ChannelHandlerContext ctx, FullHttpRequest req, DefaultFullHttpResponse res) {
-        if (res.getStatus().code() != 200) {
-            ByteBuf byteBuf = Unpooled.copiedBuffer(res.getStatus().toString(), CharsetUtil.UTF_8);
-            res.content().writeBytes(byteBuf);
-            byteBuf.release();
-            HttpUtil.setContentLength(res, res.content().readableBytes());
-        }
-        ChannelFuture channelFuture = ctx.channel().writeAndFlush(res);
-        if (!HttpUtil.isKeepAlive(req) || res.getStatus().code() != 200) {
-            channelFuture.addListener(ChannelFutureListener.CLOSE);
-        }
-    }
+//    private static final String WSURI = Constants.WEBSOCKET_PATH;
 
-    private static final String WSURI = "/ws";
-
-    private void handleHttpRequest(ChannelHandlerContext ctx, FullHttpRequest req) {
+//    /**
+//     * 不建立连接
+//     * @param ctx
+//     * @param req
+//     */
+//    private void handleHttpRequest(ChannelHandlerContext ctx, FullHttpRequest req) {
         // 如果HTTP解码失败，返回HHTP异常
-        if (req instanceof HttpRequest) {
-            HttpMethod method = req.method();
-            // 如果是websocket请求就握手升级
-            if (method.equals(HttpMethod.GET) && WSURI.equalsIgnoreCase(req.uri())) {
-                logger.debug("req instanceof HttpRequest");
-                WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory("ws://localhost:9090", null,
-                        false);
-                handshaker = wsFactory.newHandshaker(req);
-                if (handshaker == null) {
-                    WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
-                } else {
-                    handshaker.handshake(ctx.channel(), req);
-                }
-            }
-        }
+//        if (req instanceof HttpRequest) {
+//            HttpMethod method = req.method();
+//            // 如果是websocket请求就握手升级
+//            if (method.equals(HttpMethod.GET) && WSURI.equalsIgnoreCase(req.uri())) {
+//                logger.debug("req instanceof HttpRequest");
+//                WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory("ws://localhost:9090", null,
+//                        false);
+//                handshaker = wsFactory.newHandshaker(req);
+//                if (handshaker == null) {
+//                    WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
+//                } else {
+//                    handshaker.handshake(ctx.channel(), req);
+//                }
+//            }
+//        }
+//    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
+            throws Exception {
+        logger.error("异常 exceptionCaught={}",cause);
+        ctx.fireExceptionCaught(cause);
     }
 
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        logger.info("建立连接: "+ctx);
+
+    }
 
 }

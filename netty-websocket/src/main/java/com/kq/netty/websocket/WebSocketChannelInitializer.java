@@ -1,5 +1,7 @@
 package com.kq.netty.websocket;
 
+import com.kq.netty.connection.WebSocketConnectionFacade;
+import com.kq.netty.constants.Constants;
 import com.kq.netty.handler.RequestUriWebSocketFrameHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
@@ -9,6 +11,8 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleStateHandler;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
  *  通道初始化器
@@ -18,7 +22,18 @@ import io.netty.handler.timeout.IdleStateHandler;
  * @date 2021-04-21 17:56
  * @since 2020-0630
  */
+@Component
 public class WebSocketChannelInitializer extends ChannelInitializer<SocketChannel> {
+
+    @Autowired
+    private WebSocketConnectionFacade webSocketConnectionFacade;
+
+    @Autowired
+    private RequestUriWebSocketFrameHandler requestUriWebSocketFrameHandler;
+
+
+    @Autowired
+    private ChatHandler chatHandler;
 
     // 初始化通道
     //
@@ -35,12 +50,15 @@ public class WebSocketChannelInitializer extends ChannelInitializer<SocketChanne
         // 添加一个聚合器，这个聚合器主要是将HttpMessage聚合成FullHttpRequest/Response
         pipeline.addLast(new HttpObjectAggregator(1024*64));
         // 处理请求参数
-        pipeline.addLast(new RequestUriWebSocketFrameHandler());
+        pipeline.addLast(requestUriWebSocketFrameHandler);
+//        pipeline.addLast(new RequestUriWebSocketFrameHandler());
         // 需要指定接收请求的路由
         // 必须使用以ws后缀结尾的url才能访问
-        pipeline.addLast(new WebSocketServerProtocolHandler("/ws"));
+        pipeline.addLast(new WebSocketServerProtocolHandler(Constants.WEBSOCKET_PATH));
+//        pipeline.addLast(new WebSocketServerProtocolHandler("/ws"));
         // 添加自定义的Handler
-        pipeline.addLast(new ChatHandler());
+        pipeline.addLast(chatHandler);
+//        pipeline.addLast(new ChatHandler());
 
         // 增加心跳事件支持
         // 第一个参数:  读空闲4秒

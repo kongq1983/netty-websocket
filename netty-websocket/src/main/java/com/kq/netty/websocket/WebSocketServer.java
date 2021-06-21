@@ -1,10 +1,12 @@
 package com.kq.netty.websocket;
 
+import com.kq.netty.connection.WebSocketConnectionFacade;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -26,6 +28,9 @@ import javax.annotation.PostConstruct;
 public class WebSocketServer {
 
     private int nettyPort = 9090;
+
+    @Autowired
+    private WebSocketChannelInitializer webSocketChannelInitializer;
 
     @PostConstruct
     public void init(){
@@ -52,7 +57,8 @@ public class WebSocketServer {
                     .channel(NioServerSocketChannel.class)
                     // 指定通道初始化器用来加载当Channel收到事件消息后，
                     // 如何进行业务处理
-                    .childHandler(new WebSocketChannelInitializer());
+                    .childHandler(webSocketChannelInitializer);
+//                    .childHandler(new WebSocketChannelInitializer());
 
             //3.绑定端口，以同步的方式启动
             ChannelFuture future = serverBootstrap.bind(nettyPort).sync();

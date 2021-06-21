@@ -4,3 +4,17 @@
 websocket建立连接的时候,如果没有token,服务器不能发数据给客户端的,因为这个时候还没建立连接
 
 WebSocketServerProtocolHandshakeHandler
+
+
+http://localhost:10002/org/add?orgId=1
+http://localhost:10002/table/add?orgId=tableId=2
+
+http://localhost:10002/common/add?orgId=1&tableId=2
+
+
+172.16.69.41
+
+curl http://172.16.69.41:10002/org/add?orgId=1
+curl http://172.16.69.41:10002/table/add?tableId=2
+
+curl http://172.16.69.41:10002/common/add?orgId=1&tableId=2
