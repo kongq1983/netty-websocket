@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>在线聊天室</title>
+</head>
+<body>
+<input type="text" id="message">
+<input type="button" value="发送消息" onclick="sendMsg()">
+
+接收到的消息:
+<p id="server_message" style="background-color: #AAAAAA"></p>
+
+<script>
+
+
+
+</script>
+
+<script>
+
+    var websocket = null;
+
+    // 判断当前浏览器是否支持websocket
+    if(window.WebSocket) {
+
+        var close = false;
+        var str = location.href; //取得整个地址栏
+        var num = str.indexOf("?")
+
+        if(num<0) {
+            str = "";
+        }else {
+            str = str.substr(num + 1); //取得所有参数   stringvar.substr(start [, length ]
+            str =  "?"+str;
+        }
+
+        // websocket = new WebSocket("ws://127.0.0.1:9090/ws?token=123456789");
+        try{
+            websocket = new WebSocket("ws://127.0.0.1:9090/bxdcws"+str);
+        }catch (e) {
+            alert(e);
+            var server_message = document.getElementById("server_message");
+            server_message.innerHTML += "exception: "+e+" <br/>";
+        }
+
+
+        websocket.onopen = function() {
+            console.log("建立连接.");
+        }
+        websocket.onclose = function(e) {
+            close = true;
+            // var code = e.code;
+            // var reason = e.reason;
+            // var wasClean = e.wasClean
+
+            console.log('websocket 断开: ' + e.code + ' ' + e.reason + ' ' + e.wasClean)
+
+        }
+        websocket.onmessage = function(e) {
+            console.log("接收到服务器消息:" + e.data);
+            var server_message = document.getElementById("server_message");
+            server_message.innerHTML += e.data + "<br/>";
+        }
+
+        websocket.onerror = function (e) {
+            // alert(e);
+            console.log("onerror:"+e);
+        }
+
+    }
+    else {
+        alert("当前浏览器不支持web socket");
+    }
+
+    function sendMsg() {
+        if (!close) {
+            var message = document.getElementById("message");
+            websocket.send(message.value);
+        }else {
+            var server_message = document.getElementById("server_message");
+            server_message.innerHTML += "连接已关闭！<br/>";
+        }
+    }
+
+</script>
+
+<div>
+    <table>
+        <thead>
+        <th>商品</th>
+        <th>数量</th>
+        </thead>
+
+        <tbody>
+            <tr>
+                <td>
+                    <span id="1"> 红烧鲫鱼 </span>
+                </td>
+                <td>
+                    <button class="jia">+</button>
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <span id="2"> 西红柿炒蛋 </span>
+                </td>
+                <td>
+                    <button class="jia">+</button>
+                </td>
+            </tr>
+        </tbody>
+
+    </table>
+
+</div>
+
+</body>
+</html>
