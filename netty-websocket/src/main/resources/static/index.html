@@ -5,8 +5,8 @@
     <title>在线聊天室</title>
 </head>
 <body>
-<input type="text" id="message">
-<input type="button" value="发送消息" onclick="sendMsg()">
+<!--<input type="text" id="message">
+<input type="button" value="发送消息" onclick="sendMsg()">-->
 
 接收到的消息:
 <p id="server_message" style="background-color: #AAAAAA"></p>
@@ -34,6 +34,7 @@
 
         // websocket = new WebSocket("ws://127.0.0.1:9090/ws?token=123456789");
         try{
+            // websocket = new WebSocket("ws://172.16.5.3:9090/bxdcws"+str);
             websocket = new WebSocket("ws://127.0.0.1:9090/bxdcws"+str);
         }catch (e) {
             alert(e);
@@ -159,7 +160,7 @@
 
     $(".jia").click(function  () {
         var num = $(this).prev().val();
-        if(num==20){
+        if(num==200){
             return;
         }
 

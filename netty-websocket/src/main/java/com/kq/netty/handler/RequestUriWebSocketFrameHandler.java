@@ -48,10 +48,13 @@ public class RequestUriWebSocketFrameHandler extends SimpleChannelInboundHandler
             String uri = request.uri();
             String origin = request.headers().get("Origin");
             logger.debug("origin={}",origin);
+            // 不处理来源
+            origin = "";
             // 没有来源，则直接关闭
             if (null == origin) {
                 logger.warn("{}, 没有来源!",ctx);
-                ctx.close();
+                sendFailInfoCommon(ctx, request,"origin");
+//                ctx.close();
                 return;
             } else {
                 Map<String, String> params = RequestUriUtils.getParams(uri);
@@ -79,6 +82,7 @@ public class RequestUriWebSocketFrameHandler extends SimpleChannelInboundHandler
                 dto.setOrgId(orgId);
                 dto.setTableId(tableId);
                 dto.setCreateTime(now);
+                dto.setUpdateTime(now);
 
 
                 // 校验token 合法性，这里先通过

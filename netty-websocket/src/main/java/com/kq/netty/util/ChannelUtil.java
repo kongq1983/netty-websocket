@@ -25,7 +25,7 @@ public class ChannelUtil {
         UpgradeDataDto tokenAttr = attr.get();
         if (tokenAttr == null) {
             attr.set(dto);
-            attr.setIfAbsent(dto);
+//            attr.setIfAbsent(dto);
 //            tokenAttr = attr.setIfAbsent(dto);
         } else {
             System.out.println("UpgradeDataDto 中是有值的");
